@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PHOTO SPOOFER</title>
+  <!-- Piexifjs for client-side EXIF metadata manipulation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/piexifjs/1.0.6/piexif.js"></script>
+  <style>
+    :root {
+      --bg: #091c29;
+      --card-bg: rgba(15, 36, 51, 0.75);
+      --border: rgba(56, 189, 248, 0.1);
+      --accent: #fcd34d;
+      --text: #f8fafc;
+      --subtext: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+      background-image: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=80'); /* Scenic sunset fallback */
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    .main-header {
+      width: 100%;
+      max-width: 1200px;
+      margin-bottom: 30px;
+      text-align: left;
+    }
+
+    .lock-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: 0.025em;
+    }
+
+    h1 span {
+      color: var(--accent);
+    }
+
+    .dashboard {
+      width: 100%;
+      max-width: 1200px;
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      margin-bottom: 24px;
+    }
+
+    /* Left Panel Components */
+    .drop-zone {
+      border: 2px dashed rgba(252, 211, 77, 0.3);
+      border-radius: 8px;
+      padding: 60px 20px;
+      text-align: center;
+      cursor: pointer;
+      background: rgba(15, 36, 51, 0.4);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .drop-zone:hover {
+      border-color: var(--accent);
+      background: rgba(15, 36, 51, 0.6);
+    }
+
+    .drop-zone svg {
+      width: 48px;
+      height: 48px;
+      fill: var(--accent);
+      opacity: 0.8;
+    }
+
+    .drop-zone p {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .drop-zone span {
+      font-size: 0.8rem;
+      color: var(--subtext);
+    }
+
+    .choose-btn {
+      background: var(--accent);
+      color: #0c1a24;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      transition: opacity 0.2s;
+    }
+
+    .choose-btn:hover {
+      opacity: 0.9;
+    }
+
+    .results-panel h3 {
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .results-panel p {
+      color: var(--subtext);
+      font-size: 0.85rem;
+    }
+
+    /* Settings Control Form Groups */
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--subtext);
+      margin-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 8px;
+    }
+
+    .variants-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .variant-chip {
+      flex: 1;
+      background: rgba(15, 36, 51, 0.8);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 0;
+      text-align: center;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .variant-chip.active {
+      background: var(--accent);
+      color: #091c29;
+      border-color: var(--accent);
+    }
+
+    /* Slider styling */
+    .range-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .range-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--subtext);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: #1e293b;
+      border-radius: 2px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+
+    /* Toggles Grid */
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .toggle-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .toggle-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .toggle-desc {
+      font-size: 0.75rem;
+      color: var(--subtext);
+    }
+
+    /* Switch Component */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #334155;
+      transition: .2s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .2s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--accent);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(16px);
+      background-color: #0c1a24;
+    }
+
+    /* Inputs */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--subtext);
+      margin-bottom: 6px;
+    }
+
+    select, input[type="date"], input[type="text"], input[type="number"] {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(15, 36, 51, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    select:focus, input[type="date"]:focus {
+      border-color: var(--accent);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Actions Button */
+    .action-btn {
+      width: 100%;
+      background: var(--accent);
+      color: #091c29;
+      font-size: 0.95rem;
+      font-weight: 700;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 20px rgba(252, 211, 77, 0.2);
+      transition: transform 0.1s, opacity 0.2s;
+    }
+
+    .action-btn:hover {
+      opacity: 0.95;
+    }
+
+    .action-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Results Preview lists */
+    .preview-image {
+      max-width: 100%;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="main-header">
+  <div class="lock-badge">🔒 Free Tool · 100% Local</div>
+  <h1>PHOTO <span>SPOOFER</span></h1>
+</div>
+
+<div class="dashboard">
+  <!-- Left Workspace -->
+  <div>
+    <div class="card">
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept="image/jpeg, image/jpg">
+        <svg viewBox="0 0 24 24">
+          <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+        </svg>
+        <p>Drop photos here</p>
+        <span>JPG, PNG or WebP, as many as you like.</span>
+        <button class="choose-btn">Choose photos</button>
+      </div>
+    </div>
+
+    <div class="card results-panel" id="resultsPanel">
+      <h3>🛡️ Results</h3>
+      <p>Kept only until you leave or refresh this page.</p>
+      <div id="previewArea" style="display: none; margin-top: 16px;">
+        <span style="color: var(--accent); font-size: 0.85rem;" id="statusMsg"></span>
+        <img id="previewImg" class="preview-image" alt="Uploaded Preview">
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Sidebar Workspace -->
+  <div>
+    <div class="card">
+      <div class="section-title">Variants per photo</div>
+      <div class="variants-row">
+        <div class="variant-chip active" onclick="setVariant(this, 1)">1</div>
+        <div class="variant-chip" onclick="setVariant(this, 3)">3</div>
+        <div class="variant-chip" onclick="setVariant(this, 5)">5</div>
+        <div class="variant-chip" onclick="setVariant(this, 10)">10</div>
+        <div class="variant-chip" onclick="setVariant(this, 20)">20</div>
+      </div>
+      <div class="range-container">
+        <input type="range" id="variantRange" min="1" max="20" value="1" oninput="updateRangeText(this.value)">
+        <div class="range-label">
+          <span id="rangeText">1 variant per photo</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toggle Transforms Card -->
+    <div class="card">
+      <div class="section-title">Visual Changes: Subtle, Invisible to the Eye</div>
+      
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-title">Random crop</div>
+          <div class="toggle-desc">Trims 1–2.2% from each edge</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="tweakCrop" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-title">Random flip</div>
+          <div class="toggle-desc">Mirrors about half of them left to right</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="tweakFlip" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-title">Brightness & contrast</div>
+          <div class="toggle-desc">Up to ±4.4%</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="tweakLight" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-title">Micro noise</div>
+          <div class="toggle-desc">Fine grain that changes every pixel</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="tweakNoise" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Meta Details Section -->
+    <div class="card">
+      <div class="section-title">Photo Details (EXIF)</div>
+      
+      <div class="form-group">
+        <label for="devicePreset">Device Preset (Apple iOS & Android)</label>
+        <select id="devicePreset" onchange="handleDeviceChange()">
+          <optgroup label="Apple iPhone (iOS)">
+            <option value="Apple|iPhone 17 Pro Max" selected>iPhone 17 Pro Max</option>
+            <option value="Apple|iPhone 17 Pro">iPhone 17 Pro</option>
+            <option value="Apple|iPhone 17">iPhone 17</option>
+            <option value="Apple|iPhone 16 Pro Max">iPhone 16 Pro Max</option>
+            <option value="Apple|iPhone 16 Pro">iPhone 16 Pro</option>
+            <option value="Apple|iPhone 15 Pro Max">iPhone 15 Pro Max</option>
+            <option value="Apple|iPhone 15 Pro">iPhone 15 Pro</option>
+            <option value="Apple|iPhone 14">iPhone 14</option>
+            <option value="Apple|iPhone 13">iPhone 13</option>
+            <option value="Apple|iPhone 12">iPhone 12</option>
+          </optgroup>
+          <optgroup label="Samsung Galaxy">
+            <option value="Samsung|Galaxy S26 Ultra">Samsung Galaxy S26 Ultra</option>
+            <option value="Samsung|Galaxy S25 Ultra">Samsung Galaxy S25 Ultra</option>
+            <option value="Samsung|Galaxy S24 Ultra">Samsung Galaxy S24 Ultra</option>
+            <option value="Samsung|Galaxy S23">Samsung Galaxy S23</option>
+            <option value="Samsung|Galaxy S22">Samsung Galaxy S22</option>
+          </optgroup>
+          <optgroup label="Google Pixel">
+            <option value="Google|Pixel 10 Pro">Google Pixel 10 Pro</option>
+            <option value="Google|Pixel 9 Pro">Google Pixel 9 Pro</option>
+            <option value="Google|Pixel 8 Pro">Google Pixel 8 Pro</option>
+            <option value="Google|Pixel 7">Google Pixel 7</option>
+          </optgroup>
+          <option value="custom">Custom Make & Model...</option>
+        </select>
+      </div>
+
+      <div class="grid-2 form-group" id="customDeviceFields" style="display: none;">
+        <div>
+          <label for="customMake">Make</label>
+          <input type="text" id="customMake" placeholder="Apple">
+        </div>
+        <div>
+          <label for="customModel">Model</label>
+          <input type="text" id="customModel" placeholder="iPhone">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="datePicker">Date Taken</label>
+        <input type="date" id="datePicker">
+      </div>
+
+      <div class="form-group">
+        <label for="locationPreset">Location Preset (US States)</label>
+        <select id="locationPreset" onchange="handleLocationChange()">
+          <option value="32.3777|-86.3006">Alabama (Montgomery)</option>
+          <option value="58.3016|-134.4202">Alaska (Juneau)</option>
+          <option value="33.4481|-112.0970">Arizona (Phoenix)</option>
+          <option value="34.7466|-92.2890">Arkansas (Little Rock)</option>
+          <option value="38.5767|-121.4936" selected>California (Sacramento)</option>
+          <option value="39.7392|-104.9849">Colorado (Denver)</option>
+          <option value="41.7640|-72.6822">Connecticut (Hartford)</option>
+          <option value="39.1573|-75.5197">Delaware (Dover)</option>
+          <option value="30.4381|-84.2813">Florida (Tallahassee)</option>
+          <option value="33.7490|-84.3882">Georgia (Atlanta)</option>
+          <option value="21.3074|-157.8574">Hawaii (Honolulu)</option>
+          <option value="43.6178|-116.1997">Idaho (Boise)</option>
+          <option value="39.7984|-89.6550">Illinois (Springfield)</option>
+          <option value="39.7686|-86.1626">Indiana (Indianapolis)</option>
+          <option value="41.5911|-93.6037">Iowa (Des Moines)</option>
+          <option value="39.0482|-95.6780">Kansas (Topeka)</option>
+          <option value="38.1867|-84.8754">Kentucky (Frankfort)</option>
+          <option value="30.4571|-91.1874">Louisiana (Baton Rouge)</option>
+          <option value="44.3072|-69.7817">Maine (Augusta)</option>
+          <option value="38.9788|-76.4909">Maryland (Annapolis)</option>
+          <option value="42.3582|-71.0637">Massachusetts (Boston)</option>
+          <option value="42.7336|-84.5553">Michigan (Lansing)</option>
+          <option value="44.9551|-93.1022">Minnesota (Saint Paul)</option>
+          <option value="32.3038|-90.1821">Mississippi (Jackson)</option>
+          <option value="38.5792|-92.1729">Missouri (Jefferson City)</option>
+          <option value="46.5857|-112.0184">Montana (Helena)</option>
+          <option value="40.8081|-96.6997">Nebraska (Lincoln)</option>
+          <option value="39.1639|-119.7661">Nevada (Carson City)</option>
+          <option value="43.2069|-71.5380">New Hampshire (Concord)</option>
+          <option value="40.2206|-74.7699">New Jersey (Trenton)</option>
+          <option value="35.6822|-105.9397">New Mexico (Santa Fe)</option>
+          <option value="42.6528|-73.7579">New York (Albany)</option>
+          <option value="35.7804|-78.6391">North Carolina (Raleigh)</option>
+          <option value="46.8209|-100.7833">North Dakota (Bismarck)</option>
+          <option value="39.9613|-82.9991">Ohio (Columbus)</option>
+          <option value="35.4922|-97.5033">Oklahoma (Oklahoma City)</option>
+          <option value="44.9385|-123.0304">Oregon (Salem)</option>
+          <option value="40.2644|-76.8836">Pennsylvania (Harrisburg)</option>
+          <option value="41.8309|-71.4150">Rhode Island (Providence)</option>
+          <option value="34.0003|-81.0332">South Carolina (Columbia)</option>
+          <option value="44.3670|-100.3464">South Dakota (Pierre)</option>
+          <option value="36.1658|-86.7842">Tennessee (Nashville)</option>
+          <option value="30.2747|-97.7403">Texas (Austin)</option>
+          <option value="40.7775|-111.8882">Utah (Salt Lake City)</option>
+          <option value="44.2624|-72.5805">Vermont (Montpelier)</option>
+          <option value="37.5389|-77.4336">Virginia (Richmond)</option>
+          <option value="47.0358|-122.9050">Washington (Olympia)</option>
+          <option value="38.3362|-81.6123">West Virginia (Charleston)</option>
+          <option value="43.0747|-89.3844">Wisconsin (Madison)</option>
+          <option value="41.1403|-104.8202">Wyoming (Cheyenne)</option>
+          <option value="custom">Custom Coordinates...</option>
+        </select>
+      </div>
+
+      <div class="grid-2 form-group" id="customCoordsFields" style="display: none;">
+        <div>
+          <label for="customLat">Latitude</label>
+          <input type="number" step="0.0001" id="customLat" placeholder="38.5767">
+        </div>
+        <div>
+          <label for="customLon">Longitude</label>
+          <input type="number" step="0.0001" id="customLon" placeholder="-121.4936">
+        </div>
+      </div>
+    </div>
+
+    <!-- Generate & Download Button -->
+    <button class="action-btn" onclick="processAndDownload()">
+      🚀 Add photos to spoof
+    </button>
+  </div>
+</div>
+
+<script>
+  let loadedImageDataUrl = null;
+  let originalFileName = "photo.jpg";
+
+  // Set default date to today
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('datePicker').value = today;
+
+  // Upload mechanics
+  const fileInput = document.getElementById('fileInput');
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) {
+      loadFile(e.target.files[0]);
+    }
+  });
+
+  const dropZone = document.getElementById('dropZone');
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; });
+  dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = 'rgba(252, 211, 77, 0.3)'; });
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = 'rgba(252, 211, 77, 0.3)';
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      loadFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  function loadFile(file) {
+    originalFileName = file.name;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      loadedImageDataUrl = event.target.result;
+      document.getElementById('previewImg').src = loadedImageDataUrl;
+      document.getElementById('previewArea').style.display = 'block';
+      document.getElementById('statusMsg').innerText = `Loaded: ${file.name}`;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleDeviceChange() {
+    const val = document.getElementById('devicePreset').value;
+    document.getElementById('customDeviceFields').style.display = (val === 'custom') ? 'grid' : 'none';
+  }
+
+  function handleLocationChange() {
+    const val = document.getElementById('locationPreset').value;
+    document.getElementById('customCoordsFields').style.display = (val === 'custom') ? 'grid' : 'none';
+  }
+
+  function setVariant(element, count) {
+    document.querySelectorAll('.variant-chip').forEach(chip => chip.classList.remove('active'));
+    element.classList.add('active');
+    document.getElementById('variantRange').value = count;
+    updateRangeText(count);
+  }
+
+  function updateRangeText(count) {
+    document.getElementById('rangeText').innerText = `${count} ${count == 1 ? 'variant' : 'variants'} per photo`;
+    const chips = document.querySelectorAll('.variant-chip');
+    chips.forEach(chip => {
+      if (chip.innerText == count) {
+        chip.classList.add('active');
+      } else {
+        chip.classList.remove('active');
+      }
+    });
+  }
+
+  function degToExifRational(deg) {
+    const d = Math.floor(Math.abs(deg));
+    const minFloat = (Math.abs(deg) - d) * 60;
+    const m = Math.floor(minFloat);
+    const s = Math.round((minFloat - m) * 60 * 100);
+    return [[d, 1], [m, 1], [s, 100]];
+  }
+
+  async function processAndDownload() {
+    if (!loadedImageDataUrl) {
+      alert("Please choose a photo first!");
+      return;
+    }
+
+    const numVariants = parseInt(document.getElementById('variantRange').value);
+
+    for (let variant = 1; variant <= numVariants; variant++) {
+      document.getElementById('statusMsg').innerText = `Processing variant ${variant} of ${numVariants}...`;
+
+      // Draw onto temporary Canvas
+      const img = new Image();
+      img.src = loadedImageDataUrl;
+      await img.decode();
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      const doCrop = document.getElementById('tweakCrop').checked;
+      const doFlip = document.getElementById('tweakFlip').checked;
+      const doNoise = document.getElementById('tweakNoise').checked;
+      const doLight = document.getElementById('tweakLight').checked;
+
+      let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
+      if (doCrop) {
+        const trimW = Math.floor(img.width * (0.01 + Math.random() * 0.012));
+        const trimH = Math.floor(img.height * (0.01 + Math.random() * 0.012));
+        sx = trimW;
+        sy = trimH;
+        sWidth = img.width - (trimW * 2);
+        sHeight = img.height - (trimH * 2);
+      }
+
+      canvas.width = sWidth;
+      canvas.height = sHeight;
+
+      if (doLight) {
+        const adjustment = 1.0 + (Math.random() * 0.04 - 0.02); // up to 2% either way
+        ctx.filter = `brightness(${adjustment})`;
+      }
+
+      // Half the variants mirror-flipped if random flip enabled
+      if (doFlip && Math.random() > 0.5) {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+
+      ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+
+      if (doNoise) {
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
+        for (let i = 0; i < data.length; i += 16) {
+          const noise = (Math.random() - 0.5) * 5;
+          data[i] = Math.min(255, Math.max(0, data[i] + noise));
+          data[i+1] = Math.min(255, Math.max(0, data[i+1] + noise));
+          data[i+2] = Math.min(255, Math.max(0, data[i+2] + noise));
+        }
+        ctx.putImageData(imgData, 0, 0);
+      }
+
+      const cleanJpegUrl = canvas.toDataURL('image/jpeg', 0.94);
+
+      // Apply metadata device and specs
+      let make = "Apple";
+      let model = "iPhone 17 Pro Max";
+      const devPreset = document.getElementById('devicePreset').value;
+      if (devPreset === 'custom') {
+        make = document.getElementById('customMake').value || "Apple";
+        model = document.getElementById('customModel').value || "iPhone";
+      } else {
+        const parts = devPreset.split('|');
+        make = parts[0];
+        model = parts[1];
+      }
+
+      // Generate date-time string
+      const dateVal = document.getElementById('datePicker').value || today;
+      const [y, m, d] = dateVal.split('-');
+      const h = String(Math.floor(Math.random() * 10) + 8).padStart(2, '0');
+      const min = String(Math.floor(Math.random() * 60)).padStart(2, '0');
+      const sec = String(Math.floor(Math.random() * 60)).padStart(2, '0');
+      const exifDateStr = `${y}:${m}:${d} ${h}:${min}:${sec}`;
+
+      // Set coordinates
+      let lat = 38.5767;
+      let lon = -121.4936;
+      const locPreset = document.getElementById('locationPreset').value;
+      if (locPreset === 'custom') {
+        lat = parseFloat(document.getElementById('customLat').value) || 38.5767;
+        lon = parseFloat(document.getElementById('customLon').value) || -121.4936;
+      } else {
+        const coords = locPreset.split('|');
+        lat = parseFloat(coords[0]);
+        lon = parseFloat(coords[1]);
+      }
+
+      // Inject details
+      const zeroth = {};
+      const exif = {};
+      const gps = {};
+
+      zeroth[piexif.ImageIFD.Make] = make;
+      zeroth[piexif.ImageIFD.Model] = model;
+      zeroth[piexif.ImageIFD.DateTime] = exifDateStr;
+
+      exif[piexif.ExifIFD.DateTimeOriginal] = exifDateStr;
+      exif[piexif.ExifIFD.DateTimeDigitized] = exifDateStr;
+
+      gps[piexif.GPSIFD.GPSLatitudeRef] = lat >= 0 ? "N" : "S";
+      gps[piexif.GPSIFD.GPSLatitude] = degToExifRational(lat);
+      gps[piexif.GPSIFD.GPSLongitudeRef] = lon >= 0 ? "E" : "W";
+      gps[piexif.GPSIFD.GPSLongitude] = degToExifRational(lon);
+
+      const exifObj = { "0th": zeroth, "Exif": exif, "GPS": gps };
+      const exifBytes = piexif.dump(exifObj);
+      const finalJpeg = piexif.insert(exifBytes, cleanJpegUrl);
+
+      // Trigger automatic Direct Download file-by-file (Direct JPG)
+      const downloadLink = document.createElement('a');
+      downloadLink.href = finalJpeg;
+      const baseName = originalFileName.replace(/\.[^/.]+$/, "");
+      downloadLink.download = numVariants > 1 
+        ? `${baseName}_variant_${variant}.jpg` 
+        : `${baseName}_spoofed.jpg`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+
+    document.getElementById('statusMsg').innerText = "Direct JPG downloaded successfully!";
+  }
+</script>
+
+</body>
+</html>
